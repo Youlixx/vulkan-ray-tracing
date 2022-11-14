@@ -1,0 +1,173 @@
+#version 450
+
+#define PI 3.14159265
+#define FLOAT_MAX 3.402823466e+38
+
+#define ANTIALIASING_SAMPLES 1
+#define ANTIALIASING_QUASIRANDOM_SEED_A 0.7548776662
+#define ANTIALIASING_QUASIRANDOM_SEED_B 0.5698402911
+
+layout (local_size_x = 16, local_size_y = 16) in;
+layout (binding = 0) uniform samplerCube samplerSkybox;
+layout (binding = 1, rgba8) uniform writeonly image2D resultImage;
+
+layout (binding = 2) uniform Settings {
+	mat4 projection;   
+	mat4 transform;
+	
+	vec3 skyColor;
+	
+	vec4 directionalLight;
+	
+	float angle;
+} settings; 
+
+struct Sphere {
+	vec3 position;
+	float radius;
+	vec3 albedo;
+	vec3 specular;
+};
+
+struct Plane {
+	vec3 position;
+	vec3 normal;
+	vec3 albedo;
+	vec3 specular;
+};
+
+layout (std140, binding = 3) buffer Spheres {
+	Sphere spheres[];
+};
+
+layout (std140, binding = 4) buffer Planes {
+	Plane planes[];
+};
+
+
+struct Ray {
+	vec3 origin;
+	vec3 direction;
+	vec3 energy;
+};
+
+Ray createRay(vec3 origin, vec3 direction) {
+	return Ray(origin, direction, vec3(1.0f, 1.0f, 1.0f));
+}
+
+Ray createCameraRay(int rayIndex) {
+	vec2 quasiRandomOffset = rayIndex * vec2(ANTIALIASING_QUASIRANDOM_SEED_A, ANTIALIASING_QUASIRANDOM_SEED_B) + 0.5;
+	vec2 viewCoordinates = gl_GlobalInvocationID.xy + mod(quasiRandomOffset, 1.0f);
+
+	vec4 origin = settings.transform * vec4(0.0f, 0.0f, 0.0f, 1.0f);
+	vec4 direction = settings.transform * vec4((settings.projection * vec4(viewCoordinates / imageSize(resultImage) * 2.0f - 1.0f, 0.0f, 1.0f)).xyz, 0.0f);
+
+	return createRay(origin.xyz, normalize(direction.xyz));
+}
+
+struct RayHit {
+    float distance;
+    vec3 position;
+    vec3 normal;
+    vec3 albedo;
+    vec3 specular;
+};
+
+RayHit createRayHit() {
+	return RayHit(FLOAT_MAX, vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 0.0f));
+}
+
+void intersectPlane(Ray ray, inout RayHit bestHit, Plane plane) {
+	float a = dot(ray.direction, plane.normal);
+	
+	if (a < 0) {
+		float t = dot(plane.position - ray.origin, plane.normal) / a;
+		
+		if (t > 0 && t < bestHit.distance) {
+			bestHit.distance = t;
+			bestHit.position = ray.origin + t * ray.direction;
+			bestHit.normal = plane.normal;
+			bestHit.albedo = plane.albedo;
+			bestHit.specular = plane.specular;
+		}
+	}
+}
+
+void intersectSphere(Ray ray, inout RayHit bestHit, Sphere sphere) {
+    vec3 d = ray.origin - sphere.position;
+    float p1 = -dot(ray.direction, d);
+    float p2sqr = p1 * p1 - dot(d, d) + sphere.radius * sphere.radius;
+    
+	if (p2sqr < 0) {
+        return;
+	}
+    
+	float p2 = sqrt(p2sqr);
+    float t = p1 - p2 > 0 ? p1 - p2 : p1 + p2;
+    
+	if (t > 0 && t < bestHit.distance) {
+        bestHit.distance = t;
+        bestHit.position = ray.origin + t * ray.direction;
+        bestHit.normal = normalize(bestHit.position - sphere.position);
+        bestHit.albedo = sphere.albedo;
+        bestHit.specular = sphere.specular;
+    }
+}
+
+RayHit trace(Ray ray) {
+    RayHit bestHit = createRayHit();
+
+	for (int i = 0; i < planes.length(); i++) {
+		intersectPlane(ray, bestHit, planes[i]);
+	}
+
+    for (int i = 0; i < spheres.length(); i++) {
+		Sphere sphere = spheres[i];
+		sphere.position += vec3(0.0f, 1.0f + sin(settings.angle + i), 0.0f);
+	
+        intersectSphere(ray, bestHit, sphere);
+    }
+
+    return bestHit;
+}
+
+vec3 shade(inout Ray ray, RayHit hit) {
+    if (hit.distance < FLOAT_MAX) {
+        ray.origin = hit.position + hit.normal * 0.001f;
+        ray.direction = reflect(ray.direction, hit.normal);
+        ray.energy *= hit.specular;
+
+        Ray shadowRay = createRay(hit.position + hit.normal * 0.001f, -1 * settings.directionalLight.xyz);
+        RayHit shadowHit = trace(shadowRay);
+        if (shadowHit.distance != FLOAT_MAX) {
+            return vec3(0.0f, 0.0f, 0.0f);
+        }
+
+        return clamp(dot(hit.normal, settings.directionalLight.xyz) * -1, 0.0f, 1.0f) * settings.directionalLight.w * hit.albedo;
+    } else {
+        ray.energy *= 0.0f;
+		
+		float theta = acos(ray.direction.y) / PI;
+        float phi = atan(ray.direction.x, -ray.direction.z) / (2 * PI) + 0.5f;
+		
+		return texture(samplerSkybox, ray.direction).xyz;
+    }
+}
+
+void main() {
+	vec3 result = vec3(0.0f, 0.0f, 0.0f);
+
+	for (int i = 0; i < ANTIALIASING_SAMPLES; i++) {
+		Ray ray = createCameraRay(i);
+		
+		for (int i = 0; i < 5; i++) {
+			RayHit hit = trace(ray);
+			result += ray.energy * shade(ray, hit);
+			
+			if (ray.energy.x == 0.0f && ray.energy.y == 0.0f && ray.energy.z == 0.0f)
+				break;
+		}
+	}
+	
+	imageStore(resultImage, ivec2(gl_GlobalInvocationID.xy), vec4(result / ANTIALIASING_SAMPLES, 1.0f));
+}
