@@ -34,6 +34,6 @@ namespace vrt {
 	}
 
 	bool Window::shouldClose() {
-		return glfwWindowShouldClose(_window);
+		return glfwWindowShouldClose(_window) || glfwGetKey(_window, GLFW_KEY_ESCAPE) == GLFW_PRESS;
 	}
 }

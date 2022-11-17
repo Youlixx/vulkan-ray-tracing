@@ -15,7 +15,6 @@ int main() {
 
     vrt::Settings settings{};
     settings.projection = camera.getProjectionMatrix();
-    settings.skyColor = { 0.53f, 0.81f, 0.92f };
     settings.directionalLight = { lightDirection, 1.0f };
 
     float lightAngle = 10.0f;

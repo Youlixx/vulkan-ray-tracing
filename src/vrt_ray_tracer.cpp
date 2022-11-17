@@ -92,9 +92,6 @@ namespace vrt {
 	}
 
 	void RayTracer::drawFrame() {
-		vkWaitForFences(_logicalDevice, 1, &_sync.computeComplete, VK_TRUE, UINT64_MAX);
-		vkResetFences(_logicalDevice, 1, &_sync.computeComplete);
-
 		VkSubmitInfo computeSubmitInfo{};
 		computeSubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 		computeSubmitInfo.commandBufferCount = 1;
@@ -103,6 +100,9 @@ namespace vrt {
 		if (vkQueueSubmit(_compute.queue, 1, &computeSubmitInfo, _sync.computeComplete) != VK_SUCCESS) {
 			throw std::runtime_error("Failed to submit the compute job");
 		}
+
+		vkWaitForFences(_logicalDevice, 1, &_sync.computeComplete, VK_TRUE, UINT64_MAX);
+		vkResetFences(_logicalDevice, 1, &_sync.computeComplete);
 
 		uint32_t imageIndex;
 		vkAcquireNextImageKHR(_logicalDevice, _swapChain.swapChain, UINT64_MAX, _sync.presentComplete, (VkFence) nullptr, &imageIndex);
@@ -1047,8 +1047,6 @@ namespace vrt {
 		}
 
 		if (_queueFamilyIndices.graphics != _queueFamilyIndices.compute) {
-
-
 			VkCommandBuffer commandBuffer;
 			createCommandBuffers(_graphics.commandPool, &commandBuffer);
 
@@ -1066,6 +1064,9 @@ namespace vrt {
 			vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
 			submitCommandBuffers(_graphics.commandPool, _graphics.queue, &commandBuffer);
 		}
+
+		vkWaitForFences(_logicalDevice, 1, &_sync.computeComplete, VK_TRUE, UINT64_MAX);
+		vkResetFences(_logicalDevice, 1, &_sync.computeComplete);
 	}
 
 	uint8_t RayTracer::getPhysicalDeviceQuality(VkPhysicalDevice physicalDevice) {

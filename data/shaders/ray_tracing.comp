@@ -3,7 +3,7 @@
 #define PI 3.14159265
 #define FLOAT_MAX 3.402823466e+38
 
-#define ANTIALIASING_SAMPLES 1
+#define ANTIALIASING_SAMPLES 2
 #define ANTIALIASING_QUASIRANDOM_SEED_A 0.7548776662
 #define ANTIALIASING_QUASIRANDOM_SEED_B 0.5698402911
 
@@ -14,8 +14,6 @@ layout (binding = 1, rgba8) uniform writeonly image2D resultImage;
 layout (binding = 2) uniform Settings {
 	mat4 projection;   
 	mat4 transform;
-	
-	vec3 skyColor;
 	
 	vec4 directionalLight;
 	
@@ -43,7 +41,6 @@ layout (std140, binding = 3) buffer Spheres {
 layout (std140, binding = 4) buffer Planes {
 	Plane planes[];
 };
-
 
 struct Ray {
 	vec3 origin;

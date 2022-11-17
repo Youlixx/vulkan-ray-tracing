@@ -11,8 +11,6 @@ namespace vrt {
 	struct Settings {
 		alignas(16) glm::mat4 projection;
 		alignas(16) glm::mat4 transform;
-		
-		alignas(16) glm::vec3 skyColor;
 		alignas(16) glm::vec4 directionalLight;
 
 		alignas(16) float angle;
