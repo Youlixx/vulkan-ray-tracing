@@ -8,20 +8,19 @@
 #include <stdexcept>
 #include <fstream>
 #include <set>
-#include <iostream>
 
 namespace vrt {
-	const char* RayTracer::SHADER_VERTEX_PATH = "data/shaders/rendering.vert.spv";
-	const char* RayTracer::SHADER_FRAGMENT_PATH = "data/shaders/rendering.frag.spv";
-	const char* RayTracer::SHADER_COMPUTE_PATH = "data/shaders/ray_tracing.comp.spv";
+	const char* RayTracer::SHADER_VERTEX_PATH = "shaders/rendering.vert.spv";
+	const char* RayTracer::SHADER_FRAGMENT_PATH = "shaders/rendering.frag.spv";
+	const char* RayTracer::SHADER_COMPUTE_PATH = "shaders/ray_tracing.comp.spv";
 
 	const char* RayTracer::SKY_BOX_TEXTURE_PATHS[6] = {
-		"data/skybox/back.jpg",
-		"data/skybox/front.jpg",
-		"data/skybox/top.jpg",
-		"data/skybox/bottom.jpg",
-		"data/skybox/right.jpg",
-		"data/skybox/left.jpg"
+		"../data/skybox/back.jpg",
+		"../data/skybox/front.jpg",
+		"../data/skybox/top.jpg",
+		"../data/skybox/bottom.jpg",
+		"../data/skybox/right.jpg",
+		"../data/skybox/left.jpg"
 	};
 
 	RayTracer::RayTracer(Window& window) : _window{ window } {
