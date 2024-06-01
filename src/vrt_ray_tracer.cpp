@@ -1,7 +1,7 @@
 #include "vrt_ray_tracer.hpp"
 
 #define STB_IMAGE_IMPLEMENTATION
-#include <stb.h>
+#include "stb_image.h"
 
 #include <glm/gtx/transform.hpp>
 
@@ -10,17 +10,17 @@
 #include <set>
 
 namespace vrt {
-	const char* RayTracer::SHADER_VERTEX_PATH = "data/shaders/rendering.vert.spv";
-	const char* RayTracer::SHADER_FRAGMENT_PATH = "data/shaders/rendering.frag.spv";
-	const char* RayTracer::SHADER_COMPUTE_PATH = "data/shaders/ray_tracing.comp.spv";
+	const char* RayTracer::SHADER_VERTEX_PATH = "shaders/rendering.vert.spv";
+	const char* RayTracer::SHADER_FRAGMENT_PATH = "shaders/rendering.frag.spv";
+	const char* RayTracer::SHADER_COMPUTE_PATH = "shaders/ray_tracing.comp.spv";
 
 	const char* RayTracer::SKY_BOX_TEXTURE_PATHS[6] = {
-		"data/skybox/back.jpg",
-		"data/skybox/front.jpg",
-		"data/skybox/top.jpg",
-		"data/skybox/bottom.jpg",
-		"data/skybox/right.jpg",
-		"data/skybox/left.jpg"
+		"../data/skybox/back.jpg",
+		"../data/skybox/front.jpg",
+		"../data/skybox/top.jpg",
+		"../data/skybox/bottom.jpg",
+		"../data/skybox/right.jpg",
+		"../data/skybox/left.jpg"
 	};
 
 	RayTracer::RayTracer(Window& window) : _window{ window } {
@@ -465,15 +465,6 @@ namespace vrt {
 			throw std::runtime_error("Failed to load the skybox texture image!");
 		}
 
-		// RGBA to BGRA conversion
-		for (int layer = 0; layer < 6; layer++) {
-			for (size_t k = 0; k < texWidth * texHeight; k++) {
-				auto r = layers[layer][k * 4 + 2];
-				layers[layer][k * 4 + 2] = layers[layer][k * 4];
-				layers[layer][k * 4] = r;
-			}
-		}
-
 		VkDeviceSize imageSize = texWidth * texHeight * 4 * 6;
 		VkDeviceSize layerSize = texWidth * texHeight * 4;
 
@@ -510,6 +501,7 @@ namespace vrt {
 		bufferImageCopy.imageOffset = { 0, 0, 0 };
 		bufferImageCopy.imageExtent = { (uint32_t)texWidth, (uint32_t)texHeight, 1 };
 
+		// std::cout << "outbuffer=" << &stagingBuffer << std::endl;
 		vkCmdCopyBufferToImage(copyCommandBuffer, stagingBuffer, _skyBox.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &bufferImageCopy);
 		submitCommandBuffers(_graphics.commandPool, _graphics.queue, &copyCommandBuffer);
 		changeImageLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, _skyBox.image, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, 6);
@@ -557,11 +549,7 @@ namespace vrt {
 		glm::vec3 x = { -1, 0, 0 };
 
 		std::vector<Plane> planes = {
-			// { { 5.0f, 0.0f, 0.0f }, glm::normalize(x), {0.0f, 0.0f, 0.0f}, {0.9f, 0.9f, 0.9f}},
-			// { { -5.0f, 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f }, {0.0f, 0.0f, 0.0f}, {0.9f, 0.9f, 0.9f} },
-			// { { 0.0f, 0.0f, -5.0f }, { 0.0f, 0.0f, 1.0f }, {0.0f, 0.0f, 0.0f}, {0.9f, 0.9f, 0.9f} },
-			// { { 0.0f, 0.0f, 5.0f }, { 0.0f, 0.0f, -1.0f }, {0.0f, 0.0f, 0.0f}, {0.9f, 0.9f, 0.9f} },
-			{ { 0.0f, -1.0f, 0.0f }, { 0.0f, 1.0f, 0.0f }, {1.0f, 1.0f, 1.0f}, {0.3f, 0.3f, 0.3f} },
+			{ { 0.0f, -1.0f, 0.0f }, { 0.0f, 1.0f, 0.0f }, {1.0f, 1.0f, 1.0f}, {0.1f, 0.1f, 0.1f} },
 		};
 
 		VkDeviceSize planesBufferSize = planes.size() * sizeof(Plane);
@@ -1423,7 +1411,7 @@ namespace vrt {
 		VkImageCreateInfo imageCreateInfo{};
 		imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 		imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
-		imageCreateInfo.format = _swapChain.format;
+		imageCreateInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
 		imageCreateInfo.extent = { width, height, 1 };
 		imageCreateInfo.mipLevels = 1;
 		imageCreateInfo.arrayLayers = 6;
@@ -1457,7 +1445,7 @@ namespace vrt {
 		VkImageViewCreateInfo imageViewCreateInfo{};
 		imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 		imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
-		imageViewCreateInfo.format = _swapChain.format;
+		imageViewCreateInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
 		imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
 		imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
 		imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
